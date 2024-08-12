@@ -1,0 +1,16 @@
+[Unit]
+Description=Gunicorn instance to serve MoviesBurn
+After=network.target
+
+[Service]
+User=root
+Group=www-data
+WorkingDirectory=/var/www/moviesburn.com/MoviesBurn
+Environment="PATH=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin"
+ExecStart=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin/gunicorn --workers 12 --bind unix:/var/www/moviesburn.com/MoviesBurn/moviesburn.sock -m 007 wsgi:app
+##ExecStart=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin/gunicorn --workers=16 --threads=8 --worker-class=gthread --bind unix:/var/www/moviesburn.com/MoviesBurn/moviesburn.sock -m 007 wsgi:app
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
