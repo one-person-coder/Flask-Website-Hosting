@@ -120,19 +120,19 @@ This guide provides a step-by-step process for deploying a Flask application usi
 1. **Create a systemd service file (`/etc/systemd/system/moviesburn.service`):**
 
     ```ini
-    [Unit]
     Description=Gunicorn instance to serve MoviesBurn
     After=network.target
-
+    
     [Service]
     User=root
     Group=www-data
-    WorkingDirectory=/var/www/moviesburn.com
-    Environment="PATH=/var/www/moviesburn.com/.movies-env/bin"
-    ExecStart=/var/www/moviesburn.com/.movies-env/bin/gunicorn --workers 12 --bind unix:/var/www/moviesburn.com/moviesburn.sock -m 007 wsgi:app
+    WorkingDirectory=/var/www/moviesburn.com/MoviesBurn
+    Environment="PATH=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin"
+    ExecStart=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin/gunicorn --workers 12 --bind unix:/var/www/moviesburn.com/MoviesBurn/moviesburn.sock -m 007 wsgi:app
+    ##ExecStart=/var/www/moviesburn.com/MoviesBurn/.movies-env/bin/gunicorn --workers=16 --threads=8 --worker-class=gthread --bind unix:/var/www/moviesburn.com/MoviesBurn/moviesburn.sock -m 007 wsgi:app
     Restart=always
     RestartSec=5
-
+    
     [Install]
     WantedBy=multi-user.target
     ```
@@ -154,8 +154,8 @@ This guide provides a step-by-step process for deploying a Flask application usi
         listen 80;
         listen [::]:80;
         server_name moviesburn.com www.moviesburn.com;
-
-        # Redirect all HTTP requests to HTTPS
+    
+        # Redirect all HTTP requests to HTTPS and www subdomain
         return 301 https://moviesburn.com$request_uri;
     }
 
@@ -163,33 +163,49 @@ This guide provides a step-by-step process for deploying a Flask application usi
         listen 443 ssl;
         listen [::]:443 ssl;
         server_name moviesburn.com www.moviesburn.com;
-
-        # SSL certificate paths
-        ssl_certificate /var/www/moviesburn.com/moviesburn-ssl/movies-burn-ssl.crt;
-        ssl_certificate_key /var/www/moviesburn.com/moviesburn-ssl/movies-burn-ssl.key;
-
+    
+        root /var/www/html;
+    
         # Hide server version information
         server_tokens off;
         add_header X-Frame-Options "SAMEORIGIN";
         add_header X-XSS-Protection "1; mode=block";
         add_header X-Content-Type-Options nosniff;
-
+    
+        # Handle requests to /phpmyadmin
+       location /phpmyadmin {
+            alias /usr/share/phpmyadmin/;
+            index index.php;
+            try_files $uri $uri/ =404;
+    
+            location ~ \.php$ {
+                include snippets/fastcgi-php.conf;
+                fastcgi_pass unix:/run/php/php8.3-fpm.sock;
+                fastcgi_param SCRIPT_FILENAME $request_filename;
+                include fastcgi_params;
+            }
+        }
+        # SSL certificate paths
+        ssl_certificate /var/www/moviesburn.com/moviesburn-ssl/movies-burn-ssl.crt;
+        ssl_certificate_key /var/www/moviesburn.com/moviesburn-ssl/movies-burn-ssl.key;
+    
         # Redirect www HTTPS requests to non-www HTTPS
         if ($host = www.moviesburn.com) {
             return 301 https://moviesburn.com$request_uri;
         }
-
-        # Proxy requests to the Flask app
+    
+        # Proxy other requests to your Flask app
         location / {
             include proxy_params;
-            proxy_pass http://unix:/var/www/moviesburn.com/moviesburn.sock;
+            proxy_pass http://unix:/var/www/moviesburn.com/MoviesBurn/moviesburn.sock;
         }
-
-        # Serve static files
+    
+        # Serve static files with caching and gzip compression
         location /static/ {
-            root /var/www/moviesburn.com;
+            root /var/www/moviesburn.com/MoviesBurn/;
             expires 1y;
             add_header Cache-Control "public, max-age=31536000";
+            include /etc/nginx/mime.types;
             gzip on;
             gzip_types text/plain text/css application/json application/javascript text/xml application/xml application/xml+rss text/javascript;
         }
