@@ -41,6 +41,9 @@ This guide provides a step-by-step process for deploying a Flask application usi
     ```bash
     sudo apt install python3-pip python3-dev build-essential libssl-dev libffi-dev python3-setuptools python3-venv ufw
     ```
+    ```bash
+    sudo apt-get install pkg-config python3-dev default-libmysqlclient-dev build-essential
+    ```
 
 ## 3. Set Up the Flask Application
 
